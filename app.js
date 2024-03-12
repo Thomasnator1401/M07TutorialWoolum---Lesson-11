@@ -1,43 +1,27 @@
 const express = require('express');
-const morgan = require('morgan');
 const mongoose = require('mongoose');
-const blogRoutes = require('./routes/blogRoutes');
+const authRoutes = require('./routes/authRoutes');
+const cookieParser = require('cookie-parser');
+const { requireAuth, checkUser } = require('./middleware/authMiddleware');
 
-// express app
 const app = express();
 
-// connect to mongodb & listen for requests
-const dbURI = "mongodb+srv://netninja:test1234@net-ninja-tuts-del96.mongodb.net/node-tuts";
+// middleware
+app.use(express.static('public'));
+app.use(express.json());
+app.use(cookieParser());
 
-mongoose.connect(dbURI, { useNewUrlParser: true, useUnifiedTopology: true })
-  .then(result => app.listen(3000))
-  .catch(err => console.log(err));
-
-// register view engine
+// view engine
 app.set('view engine', 'ejs');
 
-// middleware & static files
-app.use(express.static('public'));
-app.use(express.urlencoded({ extended: true }));
-app.use(morgan('dev'));
-app.use((req, res, next) => {
-  res.locals.path = req.path;
-  next();
-});
+// database connection
+const dbURI = 'mongodb+srv://shaun:test1234@cluster0.del96.mongodb.net/node-auth';
+mongoose.connect(dbURI, { useNewUrlParser: true, useUnifiedTopology: true, useCreateIndex:true })
+  .then((result) => app.listen(3000))
+  .catch((err) => console.log(err));
 
 // routes
-app.get('/', (req, res) => {
-  res.redirect('/blogs');
-});
-
-app.get('/about', (req, res) => {
-  res.render('about', { title: 'About' });
-});
-
-// blog routes
-app.use('/blogs', blogRoutes);
-
-// 404 page
-app.use((req, res) => {
-  res.status(404).render('404', { title: '404' });
-});
+app.get('*', checkUser);
+app.get('/', (req, res) => res.render('home'));
+app.get('/smoothies', requireAuth, (req, res) => res.render('smoothies'));
+app.use(authRoutes);
